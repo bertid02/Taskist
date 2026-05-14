@@ -46,3 +46,16 @@ Mouse: hover any row for edit / delete affordances, or drag rows to reorder.
 
 Everything lives in `localStorage` under the key `taskist.v1`. No backend, no
 accounts, no sync — single browser only.
+
+## Deploy
+
+A GitHub Actions workflow (`.github/workflows/deploy.yml`) builds the app
+and publishes it to GitHub Pages on every push to `main` (and `claude/**`
+branches). To enable:
+
+1. Repo **Settings → Pages → Source** → "GitHub Actions".
+2. Push to `main` (or run the workflow manually from the Actions tab).
+
+The site lives at `https://bertid02.github.io/Taskist/`. Visit it in Chrome
+and pick "Install Taskist" from the address bar / menu to add it to the
+dock as a standalone app — no terminal required to launch it after that.
