@@ -126,7 +126,7 @@ export const PriorityColumn = forwardRef<HTMLInputElement, Props>(function Prior
                 />
                 {p.rolledOverFrom && !p.done && (
                   <span
-                    className="text-neutral-300 dark:text-neutral-700 text-xs leading-none"
+                    className="shrink-0 -ml-1.5 text-[9px] leading-none text-neutral-300 dark:text-neutral-700"
                     title={`Carried over from ${p.rolledOverFrom}`}
                     aria-label={`Carried over from ${p.rolledOverFrom}`}
                   >

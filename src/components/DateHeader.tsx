@@ -31,17 +31,19 @@ export function DateHeader({ date, onPrev, onNext, onToday }: Props) {
       </button>
 
       <div className="flex flex-col items-center">
-        <h1 className="text-2xl font-medium tracking-tight text-neutral-900 dark:text-neutral-100">
+        <h1 className="text-[28px] leading-none font-semibold tracking-tight text-neutral-900 dark:text-neutral-100">
           {label}
         </h1>
         {sub && (
-          <span className="text-xs text-neutral-400 dark:text-neutral-500 mt-1">{sub}</span>
+          <span className="text-[11px] tracking-wide text-neutral-400 dark:text-neutral-500 mt-2">
+            {sub}
+          </span>
         )}
         {!isToday && (
           <button
             type="button"
             onClick={onToday}
-            className="text-xs text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300 mt-1 transition-colors"
+            className="text-[11px] tracking-wide text-neutral-400 dark:text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 mt-2 transition-colors"
           >
             Jump to today
           </button>

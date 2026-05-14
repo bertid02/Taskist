@@ -13,7 +13,7 @@ export function load(): Store {
     return {
       version: 1,
       days: parsed.days ?? {},
-      prefs: { noTimeDefault: false, ...(parsed.prefs ?? {}) },
+      prefs: { noTimeDefault: false, theme: 'system', ...(parsed.prefs ?? {}) },
     }
   } catch {
     return emptyStore()

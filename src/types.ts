@@ -21,9 +21,12 @@ export type Day = {
   log: LogEntry[]
 }
 
+export type Theme = 'light' | 'dark' | 'system'
+
 export type Prefs = {
   /** When true, new log entries are added without a timestamp by default. */
   noTimeDefault: boolean
+  theme: Theme
 }
 
 export type Store = {
@@ -35,5 +38,5 @@ export type Store = {
 export const emptyStore = (): Store => ({
   version: 1,
   days: {},
-  prefs: { noTimeDefault: false },
+  prefs: { noTimeDefault: false, theme: 'system' },
 })

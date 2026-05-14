@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { Day, LogEntry, Priority, Store } from './types'
+import type { Day, LogEntry, Priority, Store, Theme } from './types'
 import { load, save } from './storage'
 import { ensureDay } from './lib/rollover'
 import { addDays, todayStr } from './lib/date'
@@ -7,6 +7,8 @@ import { uid } from './lib/uid'
 import { DateHeader } from './components/DateHeader'
 import { PriorityColumn } from './components/PriorityColumn'
 import { LogColumn } from './components/LogColumn'
+import { ThemeToggle } from './components/ThemeToggle'
+import { KeyboardHints } from './components/KeyboardHints'
 
 const UNDO_LIMIT = 50
 
@@ -55,6 +57,22 @@ export default function App() {
     }, 60_000)
     return () => window.clearInterval(id)
   }, [])
+
+  // Apply theme to <html>.
+  useEffect(() => {
+    const theme = store.prefs.theme
+    const root = document.documentElement
+    const media = window.matchMedia('(prefers-color-scheme: dark)')
+    const apply = () => {
+      const dark = theme === 'dark' || (theme === 'system' && media.matches)
+      root.classList.toggle('dark', dark)
+    }
+    apply()
+    if (theme === 'system') {
+      media.addEventListener('change', apply)
+      return () => media.removeEventListener('change', apply)
+    }
+  }, [store.prefs.theme])
 
   const day: Day = store.days[date] ?? { date, priorities: [], log: [] }
 
@@ -155,15 +173,27 @@ export default function App() {
   const toggleNoTimeDefault = () =>
     mutate((s) => ({ ...s, prefs: { ...s.prefs, noTimeDefault: !s.prefs.noTimeDefault } }))
 
+  const setTheme = (theme: Theme) =>
+    setStore((s) => ({ ...s, prefs: { ...s.prefs, theme } }))
+
   return (
     <div className="min-h-dvh bg-white dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100">
-      <div className="mx-auto max-w-5xl px-6 sm:px-10 py-12">
-        <DateHeader
-          date={date}
-          onPrev={() => setDate(addDays(date, -1))}
-          onNext={() => setDate(addDays(date, 1))}
-          onToday={() => setDate(todayStr())}
-        />
+      <div className="mx-auto max-w-5xl px-6 sm:px-10 py-8">
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] font-medium tracking-[0.22em] uppercase text-neutral-300 dark:text-neutral-700 select-none">
+            Taskist
+          </span>
+          <ThemeToggle theme={store.prefs.theme} onChange={setTheme} />
+        </div>
+
+        <div className="mt-12">
+          <DateHeader
+            date={date}
+            onPrev={() => setDate(addDays(date, -1))}
+            onNext={() => setDate(addDays(date, 1))}
+            onToday={() => setDate(todayStr())}
+          />
+        </div>
 
         <main className="mt-14 grid grid-cols-1 md:grid-cols-2 gap-x-14 gap-y-10">
           <PriorityColumn
@@ -188,34 +218,9 @@ export default function App() {
           />
         </main>
 
-        <Footer />
+        <KeyboardHints />
       </div>
     </div>
-  )
-}
-
-function Footer() {
-  return (
-    <footer className="mt-20 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[11px] text-neutral-300 dark:text-neutral-700">
-      <Hint k="Enter" desc="add" />
-      <Hint k="Space" desc="tick off" />
-      <Hint k="↑ ↓" desc="navigate" />
-      <Hint k="Alt + ↑ ↓" desc="reorder" />
-      <Hint k="[ ]" desc="prev / next day" />
-      <Hint k="T" desc="today" />
-      <Hint k="⌘Z" desc="undo" />
-    </footer>
-  )
-}
-
-function Hint({ k, desc }: { k: string; desc: string }) {
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      <kbd className="px-1.5 py-0.5 rounded border border-neutral-200 dark:border-neutral-800 text-neutral-400 dark:text-neutral-500 font-medium">
-        {k}
-      </kbd>
-      <span>{desc}</span>
-    </span>
   )
 }
 
