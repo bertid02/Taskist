@@ -2,6 +2,8 @@ import { forwardRef, useRef, useState, type KeyboardEvent } from 'react'
 import type { LogEntry } from '../types'
 import { EditableText } from './EditableText'
 import { normalizeTime, nowTime } from '../lib/date'
+import { XIcon } from './icons'
+import { dropShadow, useDragSort } from '../lib/useDragSort'
 
 type Props = {
   entries: LogEntry[]
@@ -13,18 +15,20 @@ type Props = {
   onEditTime: (id: string, time: string | null) => void
   onDelete: (id: string) => void
   onReorder: (id: string, dir: -1 | 1) => void
+  onMove: (draggedId: string, targetId: string, before: boolean) => void
 }
 
 type EditMode = { id: string; field: 'text' | 'time' } | null
 
 export const LogColumn = forwardRef<HTMLInputElement, Props>(function LogColumn(
-  { entries, noTimeDefault, onToggleNoTimeDefault, onAdd, onEditText, onEditTime, onDelete, onReorder },
+  { entries, noTimeDefault, onToggleNoTimeDefault, onAdd, onEditText, onEditTime, onDelete, onReorder, onMove },
   inputRef,
 ) {
   const [draft, setDraft] = useState('')
   const [focusedId, setFocusedId] = useState<string | null>(null)
   const [editing, setEditing] = useState<EditMode>(null)
   const itemRefs = useRef<Map<string, HTMLDivElement | null>>(new Map())
+  const drag = useDragSort<LogEntry>(onMove)
 
   const focusItem = (id: string | null) => {
     setFocusedId(id)
@@ -117,6 +121,9 @@ export const LogColumn = forwardRef<HTMLInputElement, Props>(function LogColumn(
           const isFocused = focusedId === entry.id
           const isEditingText = editing?.id === entry.id && editing.field === 'text'
           const isEditingTime = editing?.id === entry.id && editing.field === 'time'
+          const isEditing = editing?.id === entry.id
+          const isDragging = drag.dragId === entry.id
+          const isDropTarget = drag.dropTarget?.id === entry.id
           return (
             <li key={entry.id}>
               <div
@@ -125,11 +132,19 @@ export const LogColumn = forwardRef<HTMLInputElement, Props>(function LogColumn(
                   else itemRefs.current.delete(entry.id)
                 }}
                 tabIndex={-1}
+                draggable={!isEditing}
+                onDragStart={(e) => drag.onDragStart(e, entry)}
+                onDragOver={(e) => drag.onDragOver(e, entry)}
+                onDrop={(e) => drag.onDrop(e, entry)}
+                onDragEnd={drag.onDragEnd}
                 onKeyDown={(e) => handleItemKey(e, entry, idx)}
                 onFocus={() => setFocusedId(entry.id)}
-                className={`group flex items-center gap-3 px-3 py-2 -mx-3 rounded-md select-none transition-colors ${
+                style={{
+                  boxShadow: dropShadow(isDropTarget, drag.dropTarget?.before),
+                }}
+                className={`group flex items-center gap-3 px-3 py-2 -mx-3 rounded-md select-none transition-colors cursor-grab active:cursor-grabbing ${
                   isFocused ? 'bg-neutral-100 dark:bg-neutral-900' : 'hover:bg-neutral-50 dark:hover:bg-neutral-900/50'
-                }`}
+                } ${isDragging ? 'opacity-40' : ''}`}
               >
                 <div
                   className="flex-1 min-w-0 text-[15px] text-neutral-900 dark:text-neutral-100 cursor-text"
@@ -187,6 +202,22 @@ export const LogColumn = forwardRef<HTMLInputElement, Props>(function LogColumn(
                     <span className="opacity-0 group-hover:opacity-100 transition-opacity">— : —</span>
                   )}
                 </div>
+                {!isEditing && (
+                  <button
+                    type="button"
+                    draggable={false}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onDelete(entry.id)
+                    }}
+                    title="Delete"
+                    aria-label="Delete"
+                    className="grid place-items-center w-6 h-6 rounded text-neutral-400 hover:text-neutral-900 hover:bg-neutral-200/60 dark:text-neutral-500 dark:hover:text-neutral-100 dark:hover:bg-neutral-800/60 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-all"
+                  >
+                    <XIcon />
+                  </button>
+                )}
               </div>
             </li>
           )

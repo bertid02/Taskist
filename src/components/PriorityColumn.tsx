@@ -1,6 +1,8 @@
 import { forwardRef, useRef, useState, type KeyboardEvent } from 'react'
 import type { Priority } from '../types'
 import { EditableText } from './EditableText'
+import { PencilIcon, XIcon } from './icons'
+import { dropShadow, useDragSort } from '../lib/useDragSort'
 
 type Props = {
   priorities: Priority[]
@@ -9,16 +11,18 @@ type Props = {
   onEdit: (id: string, text: string) => void
   onDelete: (id: string) => void
   onReorder: (id: string, dir: -1 | 1) => void
+  onMove: (draggedId: string, targetId: string, before: boolean) => void
 }
 
 export const PriorityColumn = forwardRef<HTMLInputElement, Props>(function PriorityColumn(
-  { priorities, onAdd, onToggle, onEdit, onDelete, onReorder },
+  { priorities, onAdd, onToggle, onEdit, onDelete, onReorder, onMove },
   inputRef,
 ) {
   const [draft, setDraft] = useState('')
   const [focusedId, setFocusedId] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const itemRefs = useRef<Map<string, HTMLDivElement | null>>(new Map())
+  const drag = useDragSort<Priority>(onMove)
 
   const focusItem = (id: string | null) => {
     setFocusedId(id)
@@ -93,6 +97,8 @@ export const PriorityColumn = forwardRef<HTMLInputElement, Props>(function Prior
         {priorities.map((p, idx) => {
           const isFocused = focusedId === p.id
           const isEditing = editingId === p.id
+          const isDragging = drag.dragId === p.id
+          const isDropTarget = drag.dropTarget?.id === p.id
           return (
             <li key={p.id}>
               <div
@@ -103,6 +109,11 @@ export const PriorityColumn = forwardRef<HTMLInputElement, Props>(function Prior
                 tabIndex={-1}
                 role="checkbox"
                 aria-checked={p.done}
+                draggable={!isEditing}
+                onDragStart={(e) => drag.onDragStart(e, p)}
+                onDragOver={(e) => drag.onDragOver(e, p)}
+                onDrop={(e) => drag.onDrop(e, p)}
+                onDragEnd={drag.onDragEnd}
                 onKeyDown={(e) => handleItemKey(e, p, idx)}
                 onClick={() => {
                   if (!isEditing) onToggle(p.id)
@@ -112,9 +123,12 @@ export const PriorityColumn = forwardRef<HTMLInputElement, Props>(function Prior
                   setEditingId(p.id)
                 }}
                 onFocus={() => setFocusedId(p.id)}
-                className={`group flex items-center gap-3 px-3 py-2 -mx-3 rounded-md cursor-pointer select-none transition-colors ${
+                style={{
+                  boxShadow: dropShadow(isDropTarget, drag.dropTarget?.before),
+                }}
+                className={`group flex items-center gap-3 px-3 py-2 -mx-3 rounded-md cursor-grab active:cursor-grabbing select-none transition-colors ${
                   isFocused ? 'bg-neutral-100 dark:bg-neutral-900' : 'hover:bg-neutral-50 dark:hover:bg-neutral-900/50'
-                }`}
+                } ${isDragging ? 'opacity-40' : ''}`}
               >
                 <span
                   aria-hidden
@@ -160,6 +174,22 @@ export const PriorityColumn = forwardRef<HTMLInputElement, Props>(function Prior
                     }}
                   />
                 </div>
+                {!isEditing && (
+                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                    <RowButton
+                      label="Edit"
+                      onClick={() => setEditingId(p.id)}
+                    >
+                      <PencilIcon />
+                    </RowButton>
+                    <RowButton
+                      label="Delete"
+                      onClick={() => onDelete(p.id)}
+                    >
+                      <XIcon />
+                    </RowButton>
+                  </div>
+                )}
               </div>
             </li>
           )
@@ -168,6 +198,33 @@ export const PriorityColumn = forwardRef<HTMLInputElement, Props>(function Prior
     </section>
   )
 })
+
+function RowButton({
+  label,
+  onClick,
+  children,
+}: {
+  label: string
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      draggable={false}
+      onMouseDown={(e) => e.stopPropagation()}
+      onClick={(e) => {
+        e.stopPropagation()
+        onClick()
+      }}
+      title={label}
+      aria-label={label}
+      className="grid place-items-center w-6 h-6 rounded text-neutral-400 hover:text-neutral-900 hover:bg-neutral-200/60 dark:text-neutral-500 dark:hover:text-neutral-100 dark:hover:bg-neutral-800/60 transition-colors"
+    >
+      {children}
+    </button>
+  )
+}
 
 function ColumnHeader({ label }: { label: string }) {
   return (

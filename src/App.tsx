@@ -147,6 +147,8 @@ export default function App() {
     updateDay((d) => ({ ...d, priorities: d.priorities.filter((p) => p.id !== id) }))
   const reorderPriority = (id: string, dir: -1 | 1) =>
     updateDay((d) => ({ ...d, priorities: move(d.priorities, id, dir) }))
+  const movePriority = (draggedId: string, targetId: string, before: boolean) =>
+    updateDay((d) => ({ ...d, priorities: dragMove(d.priorities, draggedId, targetId, before) }))
 
   // Log handlers
   const addLog = (text: string, time: string | null) => {
@@ -169,6 +171,8 @@ export default function App() {
     updateDay((d) => ({ ...d, log: d.log.filter((e) => e.id !== id) }))
   const reorderLog = (id: string, dir: -1 | 1) =>
     updateDay((d) => ({ ...d, log: move(d.log, id, dir) }))
+  const moveLog = (draggedId: string, targetId: string, before: boolean) =>
+    updateDay((d) => ({ ...d, log: dragMove(d.log, draggedId, targetId, before) }))
 
   const toggleNoTimeDefault = () =>
     mutate((s) => ({ ...s, prefs: { ...s.prefs, noTimeDefault: !s.prefs.noTimeDefault } }))
@@ -204,6 +208,7 @@ export default function App() {
             onEdit={editPriority}
             onDelete={deletePriority}
             onReorder={reorderPriority}
+            onMove={movePriority}
           />
           <LogColumn
             ref={logInputRef}
@@ -215,6 +220,7 @@ export default function App() {
             onEditTime={editLogTime}
             onDelete={deleteLog}
             onReorder={reorderLog}
+            onMove={moveLog}
           />
         </main>
 
@@ -232,6 +238,22 @@ function move<T extends { id: string }>(arr: T[], id: string, dir: -1 | 1): T[] 
   const copy = arr.slice()
   ;[copy[idx], copy[next]] = [copy[next], copy[idx]]
   return copy
+}
+
+function dragMove<T extends { id: string }>(
+  arr: T[],
+  draggedId: string,
+  targetId: string,
+  before: boolean,
+): T[] {
+  if (draggedId === targetId) return arr
+  const dragged = arr.find((x) => x.id === draggedId)
+  if (!dragged) return arr
+  const filtered = arr.filter((x) => x.id !== draggedId)
+  const idx = filtered.findIndex((x) => x.id === targetId)
+  if (idx === -1) return arr
+  const insertIdx = before ? idx : idx + 1
+  return [...filtered.slice(0, insertIdx), dragged, ...filtered.slice(insertIdx)]
 }
 
 function isTyping(target: EventTarget | null): boolean {

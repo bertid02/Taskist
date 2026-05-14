@@ -40,6 +40,8 @@ host (GitHub Pages, Netlify, S3, etc.).
 | `[` / `]`       | Previous / next day                   |
 | `T`             | Jump to today                         |
 
+Mouse: hover any row for edit / delete affordances, or drag rows to reorder.
+
 ## Storage
 
 Everything lives in `localStorage` under the key `taskist.v1`. No backend, no
