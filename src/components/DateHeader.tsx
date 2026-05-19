@@ -7,6 +7,13 @@ type Props = {
   onToday: () => void
 }
 
+const navButton =
+  'grid place-items-center w-9 h-9 rounded-full text-neutral-400 dark:text-neutral-500 ' +
+  'hover:text-neutral-900 dark:hover:text-neutral-100 ' +
+  'hover:bg-neutral-100 dark:hover:bg-neutral-900 ' +
+  'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-300 dark:focus-visible:ring-neutral-700 ' +
+  'transition-colors'
+
 export function DateHeader({ date, onPrev, onNext, onToday }: Props) {
   const isToday = date === todayStr()
   const label = displayDate(date)
@@ -21,21 +28,16 @@ export function DateHeader({ date, onPrev, onNext, onToday }: Props) {
 
   return (
     <header className="flex items-center justify-between">
-      <button
-        type="button"
-        onClick={onPrev}
-        aria-label="Previous day"
-        className="p-2 -m-2 text-neutral-300 dark:text-neutral-700 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
-      >
+      <button type="button" onClick={onPrev} aria-label="Previous day" className={navButton}>
         <Chevron dir="left" />
       </button>
 
       <div className="flex flex-col items-center">
-        <h1 className="text-[28px] leading-none font-semibold tracking-tight text-neutral-900 dark:text-neutral-100">
+        <h1 className="text-[36px] leading-none font-semibold tracking-tight text-neutral-900 dark:text-neutral-100">
           {label}
         </h1>
         {sub && (
-          <span className="text-[11px] tracking-wide text-neutral-400 dark:text-neutral-500 mt-2">
+          <span className="text-[11px] tracking-wide text-neutral-400 dark:text-neutral-500 mt-2.5">
             {sub}
           </span>
         )}
@@ -50,12 +52,7 @@ export function DateHeader({ date, onPrev, onNext, onToday }: Props) {
         )}
       </div>
 
-      <button
-        type="button"
-        onClick={onNext}
-        aria-label="Next day"
-        className="p-2 -m-2 text-neutral-300 dark:text-neutral-700 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
-      >
+      <button type="button" onClick={onNext} aria-label="Next day" className={navButton}>
         <Chevron dir="right" />
       </button>
     </header>
@@ -65,12 +62,12 @@ export function DateHeader({ date, onPrev, onNext, onToday }: Props) {
 function Chevron({ dir }: { dir: 'left' | 'right' }) {
   return (
     <svg
-      width="16"
-      height="16"
+      width="18"
+      height="18"
       viewBox="0 0 16 16"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.5"
+      strokeWidth="1.75"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden

@@ -81,9 +81,17 @@ export const PriorityColumn = forwardRef<HTMLInputElement, Props>(function Prior
     }
   }
 
+  const remaining = priorities.filter((p) => !p.done).length
+  const countLabel =
+    priorities.length === 0
+      ? null
+      : remaining === 0
+        ? 'all done'
+        : `${remaining} left`
+
   return (
     <section className="flex flex-col min-w-0">
-      <ColumnHeader label="Priorities" />
+      <ColumnHeader label="Priorities" count={countLabel} />
       <input
         ref={inputRef}
         value={draft}
@@ -226,10 +234,15 @@ function RowButton({
   )
 }
 
-function ColumnHeader({ label }: { label: string }) {
+function ColumnHeader({ label, count }: { label: string; count?: string | null }) {
   return (
     <h2 className="text-xs font-medium uppercase tracking-[0.12em] text-neutral-400 dark:text-neutral-500 mb-3">
       {label}
+      {count && (
+        <span className="ml-2 text-neutral-300 dark:text-neutral-600 normal-case tracking-normal font-normal">
+          · {count}
+        </span>
+      )}
     </h2>
   )
 }

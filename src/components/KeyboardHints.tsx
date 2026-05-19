@@ -10,6 +10,7 @@ const hints: Array<{ k: string; desc: string }> = [
   { k: 'T', desc: 'Today' },
   { k: '⌘Z', desc: 'Undo' },
   { k: '⌘⇧T', desc: 'Toggle timestamp' },
+  { k: '⌘⇧L', desc: 'Copy log to clipboard' },
 ]
 
 export function KeyboardHints() {
