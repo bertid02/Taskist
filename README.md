@@ -1,7 +1,7 @@
 # Taskist
 
 A simple, friction-free daily tasking app. Two columns: **Priorities** (what
-you mean to do) on the left, **Log** (what you actually did, timestamped) on
+you mean to do) on the left, **Did** (what you actually did, timestamped) on
 the right. Unfinished priorities roll over to the next day automatically.
 
 ## Run
@@ -28,7 +28,7 @@ host (GitHub Pages, Netlify, S3, etc.).
 | Key             | Action                                |
 | --------------- | ------------------------------------- |
 | `Enter`         | Add the input's text                  |
-| `Tab`           | Move between Priorities and Log inputs |
+| `Tab`           | Move between Priorities and Did inputs |
 | `↑` / `↓`       | Navigate items in the focused column  |
 | `Space`         | Tick off a focused priority           |
 | `Enter` on item | Edit                                  |
@@ -37,6 +37,7 @@ host (GitHub Pages, Netlify, S3, etc.).
 | `⌘/Ctrl + ⌫`    | Delete the focused item               |
 | `⌘/Ctrl + Z`    | Undo                                  |
 | `⌘/Ctrl + Shift + T` | Toggle timestamp on a log entry  |
+| `⌘/Ctrl + Shift + L` | Copy the day to clipboard        |
 | `[` / `]`       | Previous / next day                   |
 | `T`             | Jump to today                         |
 

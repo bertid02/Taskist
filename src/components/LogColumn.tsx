@@ -115,7 +115,7 @@ export const LogColumn = forwardRef<HTMLInputElement, Props>(function LogColumn(
     <section className="flex flex-col min-w-0">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-xs font-medium uppercase tracking-[0.12em] text-neutral-400 dark:text-neutral-500">
-          Log
+          Did
           {entries.length > 0 && (
             <span className="ml-2 text-neutral-300 dark:text-neutral-600 normal-case tracking-normal font-normal">
               · {entries.length}

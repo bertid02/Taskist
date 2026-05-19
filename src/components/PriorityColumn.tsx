@@ -1,8 +1,9 @@
 import { forwardRef, useRef, useState, type KeyboardEvent } from 'react'
 import type { Priority } from '../types'
 import { EditableText } from './EditableText'
-import { PencilIcon, XIcon } from './icons'
+import { HistoryIcon, PencilIcon, XIcon } from './icons'
 import { dropShadow, useDragSort } from '../lib/useDragSort'
+import { displayDate } from '../lib/date'
 
 type Props = {
   priorities: Priority[]
@@ -148,11 +149,11 @@ export const PriorityColumn = forwardRef<HTMLInputElement, Props>(function Prior
                 />
                 {p.rolledOverFrom && !p.done && (
                   <span
-                    className="shrink-0 -ml-1.5 text-[9px] leading-none text-neutral-300 dark:text-neutral-700"
-                    title={`Carried over from ${p.rolledOverFrom}`}
-                    aria-label={`Carried over from ${p.rolledOverFrom}`}
+                    className="shrink-0 -ml-1.5 leading-none text-neutral-400 dark:text-neutral-600"
+                    title={`Carried over from ${displayDate(p.rolledOverFrom)}`}
+                    aria-label={`Carried over from ${displayDate(p.rolledOverFrom)}`}
                   >
-                    ↻
+                    <HistoryIcon />
                   </span>
                 )}
                 <div
