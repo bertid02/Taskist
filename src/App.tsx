@@ -2,13 +2,15 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Day, LogEntry, Priority, Store, Theme } from './types'
 import { load, save } from './storage'
 import { ensureDay } from './lib/rollover'
-import { addDays, todayStr } from './lib/date'
+import { addDays, nowTime, todayStr } from './lib/date'
 import { uid } from './lib/uid'
+import { formatDayLog } from './lib/clipboard'
 import { DateHeader } from './components/DateHeader'
 import { PriorityColumn } from './components/PriorityColumn'
 import { LogColumn } from './components/LogColumn'
 import { ThemeToggle } from './components/ThemeToggle'
 import { KeyboardHints } from './components/KeyboardHints'
+import { Logo } from './components/Logo'
 
 const UNDO_LIMIT = 50
 
@@ -75,6 +77,10 @@ export default function App() {
   }, [store.prefs.theme])
 
   const day: Day = store.days[date] ?? { date, priorities: [], log: [] }
+  const dayRef = useRef(day)
+  useEffect(() => {
+    dayRef.current = day
+  }, [day])
 
   const mutate = useCallback((updater: (s: Store) => Store) => {
     setStore((prev) => {
@@ -107,6 +113,11 @@ export default function App() {
         }
         return
       }
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'l') {
+        e.preventDefault()
+        navigator.clipboard.writeText(formatDayLog(dayRef.current)).catch(() => {})
+        return
+      }
       if (typing) return
       if (e.key === '[') {
         e.preventDefault()
@@ -134,10 +145,32 @@ export default function App() {
     }))
   }
   const togglePriority = (id: string) =>
-    updateDay((d) => ({
-      ...d,
-      priorities: d.priorities.map((p) => (p.id === id ? { ...p, done: !p.done } : p)),
-    }))
+    updateDay((d) => {
+      const target = d.priorities.find((p) => p.id === id)
+      if (!target) return d
+      const willBeDone = !target.done
+      const nextPriorities = d.priorities.map((p) =>
+        p.id === id ? { ...p, done: willBeDone } : p,
+      )
+      if (willBeDone) {
+        if (store.prefs.autoLog && !d.log.some((e) => e.priorityId === id)) {
+          const entry: LogEntry = {
+            id: uid(),
+            text: target.text,
+            time: store.prefs.noTimeDefault ? null : nowTime(),
+            createdAt: Date.now(),
+            priorityId: id,
+          }
+          return { ...d, priorities: nextPriorities, log: [...d.log, entry] }
+        }
+        return { ...d, priorities: nextPriorities }
+      }
+      return {
+        ...d,
+        priorities: nextPriorities,
+        log: d.log.filter((e) => e.priorityId !== id),
+      }
+    })
   const editPriority = (id: string, text: string) =>
     updateDay((d) => ({
       ...d,
@@ -177,6 +210,13 @@ export default function App() {
   const toggleNoTimeDefault = () =>
     mutate((s) => ({ ...s, prefs: { ...s.prefs, noTimeDefault: !s.prefs.noTimeDefault } }))
 
+  const toggleAutoLog = () =>
+    mutate((s) => ({ ...s, prefs: { ...s.prefs, autoLog: !s.prefs.autoLog } }))
+
+  const copyDayLog = () => {
+    navigator.clipboard.writeText(formatDayLog(day)).catch(() => {})
+  }
+
   const setTheme = (theme: Theme) =>
     setStore((s) => ({ ...s, prefs: { ...s.prefs, theme } }))
 
@@ -184,9 +224,7 @@ export default function App() {
     <div className="min-h-dvh bg-white dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100">
       <div className="mx-auto max-w-5xl px-6 sm:px-10 py-8">
         <div className="flex items-center justify-between">
-          <span className="text-[10px] font-medium tracking-[0.22em] uppercase text-neutral-300 dark:text-neutral-700 select-none">
-            Taskist
-          </span>
+          <Logo />
           <ThemeToggle theme={store.prefs.theme} onChange={setTheme} />
         </div>
 
@@ -214,7 +252,10 @@ export default function App() {
             ref={logInputRef}
             entries={day.log}
             noTimeDefault={store.prefs.noTimeDefault}
+            autoLog={store.prefs.autoLog}
             onToggleNoTimeDefault={toggleNoTimeDefault}
+            onToggleAutoLog={toggleAutoLog}
+            onCopyDay={copyDayLog}
             onAdd={addLog}
             onEditText={editLogText}
             onEditTime={editLogTime}

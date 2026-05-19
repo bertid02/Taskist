@@ -9,7 +9,11 @@ type Props = {
   entries: LogEntry[]
   /** When true, new entries are added with no timestamp by default. */
   noTimeDefault: boolean
+  /** When true, ticking a priority auto-logs an entry. Toggle is reflected in the header. */
+  autoLog: boolean
   onToggleNoTimeDefault: () => void
+  onToggleAutoLog: () => void
+  onCopyDay: () => void
   onAdd: (text: string, time: string | null) => void
   onEditText: (id: string, text: string) => void
   onEditTime: (id: string, time: string | null) => void
@@ -21,14 +25,34 @@ type Props = {
 type EditMode = { id: string; field: 'text' | 'time' } | null
 
 export const LogColumn = forwardRef<HTMLInputElement, Props>(function LogColumn(
-  { entries, noTimeDefault, onToggleNoTimeDefault, onAdd, onEditText, onEditTime, onDelete, onReorder, onMove },
+  {
+    entries,
+    noTimeDefault,
+    autoLog,
+    onToggleNoTimeDefault,
+    onToggleAutoLog,
+    onCopyDay,
+    onAdd,
+    onEditText,
+    onEditTime,
+    onDelete,
+    onReorder,
+    onMove,
+  },
   inputRef,
 ) {
   const [draft, setDraft] = useState('')
   const [focusedId, setFocusedId] = useState<string | null>(null)
   const [editing, setEditing] = useState<EditMode>(null)
+  const [copied, setCopied] = useState(false)
   const itemRefs = useRef<Map<string, HTMLDivElement | null>>(new Map())
   const drag = useDragSort<LogEntry>(onMove)
+
+  const handleCopy = () => {
+    onCopyDay()
+    setCopied(true)
+    window.setTimeout(() => setCopied(false), 1200)
+  }
 
   const focusItem = (id: string | null) => {
     setFocusedId(id)
@@ -92,20 +116,36 @@ export const LogColumn = forwardRef<HTMLInputElement, Props>(function LogColumn(
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-xs font-medium uppercase tracking-[0.12em] text-neutral-400 dark:text-neutral-500">
           Log
+          {entries.length > 0 && (
+            <span className="ml-2 text-neutral-300 dark:text-neutral-600 normal-case tracking-normal font-normal">
+              · {entries.length}
+            </span>
+          )}
         </h2>
-        <button
-          type="button"
-          onClick={onToggleNoTimeDefault}
-          className={`text-[11px] tracking-wide transition-colors ${
-            noTimeDefault
-              ? 'text-neutral-700 dark:text-neutral-300'
-              : 'text-neutral-300 dark:text-neutral-600 hover:text-neutral-500 dark:hover:text-neutral-400'
-          }`}
-          title="Toggle whether new entries get an automatic timestamp"
-          aria-pressed={noTimeDefault}
-        >
-          no time
-        </button>
+        <div className="flex items-center gap-3">
+          <HeaderToggle
+            active={autoLog}
+            onClick={onToggleAutoLog}
+            title="Toggle auto-log on ticking a priority"
+            label="auto-log"
+          />
+          <HeaderToggle
+            active={noTimeDefault}
+            onClick={onToggleNoTimeDefault}
+            title="Toggle whether new entries get an automatic timestamp"
+            label="no time"
+          />
+          {entries.length > 0 && (
+            <button
+              type="button"
+              onClick={handleCopy}
+              className="text-[11px] tracking-wide text-neutral-400 dark:text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors"
+              title="Copy timestamped log to clipboard"
+            >
+              {copied ? 'copied' : 'copy'}
+            </button>
+          )}
+        </div>
       </div>
       <input
         ref={inputRef}
@@ -146,6 +186,15 @@ export const LogColumn = forwardRef<HTMLInputElement, Props>(function LogColumn(
                   isFocused ? 'bg-neutral-100 dark:bg-neutral-900' : 'hover:bg-neutral-50 dark:hover:bg-neutral-900/50'
                 } ${isDragging ? 'opacity-40' : ''}`}
               >
+                {entry.priorityId && (
+                  <span
+                    className="shrink-0 -mr-1.5 text-[10px] leading-none text-neutral-300 dark:text-neutral-700"
+                    title="Auto-logged from a priority"
+                    aria-label="Auto-logged from a priority"
+                  >
+                    ↗
+                  </span>
+                )}
                 <div
                   className="flex-1 min-w-0 text-[15px] text-neutral-900 dark:text-neutral-100 cursor-text"
                   onClick={() => setEditing({ id: entry.id, field: 'text' })}
@@ -226,3 +275,31 @@ export const LogColumn = forwardRef<HTMLInputElement, Props>(function LogColumn(
     </section>
   )
 })
+
+function HeaderToggle({
+  active,
+  onClick,
+  title,
+  label,
+}: {
+  active: boolean
+  onClick: () => void
+  title: string
+  label: string
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`text-[11px] tracking-wide transition-colors ${
+        active
+          ? 'text-neutral-700 dark:text-neutral-300'
+          : 'text-neutral-300 dark:text-neutral-600 hover:text-neutral-500 dark:hover:text-neutral-400'
+      }`}
+      title={title}
+      aria-pressed={active}
+    >
+      {label}
+    </button>
+  )
+}

@@ -13,6 +13,8 @@ export type LogEntry = {
   /** HH:MM, or null if the user opted out of a timestamp for this entry. */
   time: string | null
   createdAt: number
+  /** Set when this entry was auto-created by ticking a priority; links back to that priority's id. */
+  priorityId?: string
 }
 
 export type Day = {
@@ -26,6 +28,8 @@ export type Theme = 'light' | 'dark' | 'system'
 export type Prefs = {
   /** When true, new log entries are added without a timestamp by default. */
   noTimeDefault: boolean
+  /** When true, ticking a priority auto-appends a matching log entry. */
+  autoLog: boolean
   theme: Theme
 }
 
@@ -38,5 +42,5 @@ export type Store = {
 export const emptyStore = (): Store => ({
   version: 1,
   days: {},
-  prefs: { noTimeDefault: false, theme: 'system' },
+  prefs: { noTimeDefault: false, autoLog: true, theme: 'system' },
 })
