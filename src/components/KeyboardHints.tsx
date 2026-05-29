@@ -6,6 +6,7 @@ const hints: Array<{ k: string; desc: string }> = [
   { k: 'Tab', desc: 'Switch column' },
   { k: '↑ ↓', desc: 'Navigate' },
   { k: 'Alt + ↑ ↓', desc: 'Reorder' },
+  { k: 'M', desc: 'Move to other tier' },
   { k: '[ ]', desc: 'Prev / next day' },
   { k: 'T', desc: 'Today' },
   { k: '⌘Z', desc: 'Undo' },

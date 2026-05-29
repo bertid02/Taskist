@@ -1,8 +1,19 @@
+/**
+ * Which tier a priority lives in. `today` is a committed must-do for the day;
+ * `later` is the no-pressure backlog (displayed as "Anytime"). Both tiers roll
+ * over when unfinished — the tier only changes how a task reads and where it sits.
+ */
+export type Tier = 'today' | 'later'
+
+/** Tier a brand-new priority lands in when no explicit tier is given. */
+export const DEFAULT_TIER: Tier = 'today'
+
 export type Priority = {
   id: string
   text: string
   done: boolean
   createdAt: number
+  tier: Tier
   /** ISO date (YYYY-MM-DD) of the original day this priority first appeared on. */
   rolledOverFrom?: string
 }

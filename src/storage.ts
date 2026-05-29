@@ -1,4 +1,4 @@
-import { emptyStore, type Store } from './types'
+import { emptyStore, type Day, type Store } from './types'
 
 const KEY = 'taskist.v1'
 
@@ -12,12 +12,33 @@ export function load(): Store {
     }
     return {
       version: 1,
-      days: parsed.days ?? {},
+      days: normalizeDays(parsed.days ?? {}),
       prefs: { noTimeDefault: false, autoLog: true, theme: 'system', ...(parsed.prefs ?? {}) },
     }
   } catch {
     return emptyStore()
   }
+}
+
+/**
+ * Bring stored days up to the current shape. Priorities saved before the
+ * two-tier feature have no `tier`; treat them as `today` (they were the single
+ * committed list), independent of the new-task default. Idempotent, so it's
+ * safe to run on every load without bumping the store version.
+ */
+function normalizeDays(days: Record<string, Day>): Record<string, Day> {
+  const out: Record<string, Day> = {}
+  for (const [date, day] of Object.entries(days ?? {})) {
+    out[date] = {
+      ...day,
+      priorities: (day.priorities ?? []).map((p) => ({
+        ...p,
+        tier: p.tier === 'later' ? 'later' : 'today',
+      })),
+      log: day.log ?? [],
+    }
+  }
+  return out
 }
 
 export function save(store: Store) {
