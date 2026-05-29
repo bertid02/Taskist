@@ -250,8 +250,8 @@ export const PriorityColumn = forwardRef<HTMLInputElement, Props>(function Prior
             : `${remaining} left`
           : `${items.length}`
     return (
-      <div className={tier === 'later' ? 'mt-7 pt-6 border-t border-neutral-100 dark:border-neutral-900' : 'mt-1'}>
-        <SubHeader label={label} count={count} />
+      <div className={tier === 'later' ? 'mt-7 pt-6 border-t border-neutral-100 dark:border-neutral-900' : ''}>
+        <SectionHeader label={label} count={count} />
         {renderInput(tier)}
         <ul className="mt-1">
           {items.map((p, i) => renderRow(p, tier, i))}
@@ -277,7 +277,6 @@ export const PriorityColumn = forwardRef<HTMLInputElement, Props>(function Prior
 
   return (
     <section className="flex flex-col min-w-0">
-      <ColumnHeader label="Priorities" />
       {renderSection('today', 'Today')}
       {renderSection('later', 'Anytime')}
     </section>
@@ -311,23 +310,15 @@ function RowButton({
   )
 }
 
-function ColumnHeader({ label }: { label: string }) {
+function SectionHeader({ label, count }: { label: string; count?: string | null }) {
   return (
-    <h2 className="text-[13px] font-semibold uppercase tracking-[0.12em] text-neutral-500 dark:text-neutral-400 mb-4">
-      {label}
-    </h2>
-  )
-}
-
-function SubHeader({ label, count }: { label: string; count?: string | null }) {
-  return (
-    <h3 className="text-[11px] font-medium uppercase tracking-[0.12em] text-neutral-400 dark:text-neutral-500 mb-2">
+    <h2 className="text-[13px] font-semibold uppercase tracking-[0.12em] text-neutral-500 dark:text-neutral-400 mb-3">
       {label}
       {count && (
         <span className="ml-2 text-neutral-300 dark:text-neutral-600 normal-case tracking-normal font-normal">
           · {count}
         </span>
       )}
-    </h3>
+    </h2>
   )
 }
