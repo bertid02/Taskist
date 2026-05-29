@@ -36,7 +36,7 @@ host (GitHub Pages, Netlify, S3, etc.).
 | `Alt + ↑ / ↓`   | Reorder a focused item                |
 | `⌘/Ctrl + ⌫`    | Delete the focused item               |
 | `⌘/Ctrl + Z`    | Undo                                  |
-| `⌘/Ctrl + Shift + T` | Toggle timestamp on a log entry  |
+| `⌘/Ctrl + Shift + T` | Toggle timestamp on a Did entry  |
 | `⌘/Ctrl + Shift + L` | Copy the day to clipboard        |
 | `[` / `]`       | Previous / next day                   |
 | `T`             | Jump to today                         |
