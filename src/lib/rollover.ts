@@ -20,6 +20,7 @@ export function ensureDay(store: Store, date: string): { store: Store; created: 
       id: uid(),
       text: p.text,
       done: false,
+      tier: p.tier,
       createdAt: Date.now(),
       rolledOverFrom: p.rolledOverFrom ?? prior!.date,
     }))

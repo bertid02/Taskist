@@ -2,7 +2,7 @@ import { forwardRef, useRef, useState, type KeyboardEvent } from 'react'
 import type { LogEntry } from '../types'
 import { EditableText } from './EditableText'
 import { normalizeTime, nowTime } from '../lib/date'
-import { XIcon } from './icons'
+import { PlusIcon, XIcon } from './icons'
 import { dropShadow, useDragSort } from '../lib/useDragSort'
 
 type Props = {
@@ -114,7 +114,7 @@ export const LogColumn = forwardRef<HTMLInputElement, Props>(function LogColumn(
   return (
     <section className="flex flex-col min-w-0">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-xs font-medium uppercase tracking-[0.12em] text-neutral-400 dark:text-neutral-500">
+        <h2 className="text-[13px] font-semibold uppercase tracking-[0.12em] text-neutral-500 dark:text-neutral-400">
           Did
           {entries.length > 0 && (
             <span className="ml-2 text-neutral-300 dark:text-neutral-600 normal-case tracking-normal font-normal">
@@ -147,15 +147,20 @@ export const LogColumn = forwardRef<HTMLInputElement, Props>(function LogColumn(
           )}
         </div>
       </div>
-      <input
-        ref={inputRef}
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onKeyDown={handleInputKey}
-        placeholder="What did you do?"
-        className="w-full bg-transparent border-b border-neutral-200 dark:border-neutral-800 py-3 text-[15px] placeholder:text-neutral-400 dark:placeholder:text-neutral-600 outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors"
-        aria-label="Add a log entry"
-      />
+      <div className="relative">
+        <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400 dark:text-neutral-500">
+          <PlusIcon />
+        </span>
+        <input
+          ref={inputRef}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={handleInputKey}
+          placeholder="What did you do?"
+          className="w-full rounded-md border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/50 pl-8 pr-3 py-2.5 text-[15px] placeholder:text-neutral-400 dark:placeholder:text-neutral-500 outline-none focus:bg-white dark:focus:bg-neutral-900 focus:border-neutral-300 dark:focus:border-neutral-700 focus:ring-2 focus:ring-neutral-200 dark:focus:ring-neutral-700 transition-colors"
+          aria-label="Add a log entry"
+        />
+      </div>
       <ul className="mt-1">
         {entries.map((entry, idx) => {
           const isFocused = focusedId === entry.id
@@ -294,7 +299,7 @@ function HeaderToggle({
       className={`text-[11px] tracking-wide transition-colors ${
         active
           ? 'text-neutral-700 dark:text-neutral-300'
-          : 'text-neutral-300 dark:text-neutral-600 hover:text-neutral-500 dark:hover:text-neutral-400'
+          : 'text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300'
       }`}
       title={title}
       aria-pressed={active}

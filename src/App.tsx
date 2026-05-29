@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { Day, LogEntry, Priority, Store, Theme } from './types'
+import { DEFAULT_TIER, type Day, type LogEntry, type Priority, type Store, type Theme, type Tier } from './types'
 import { load, save } from './storage'
 import { ensureDay } from './lib/rollover'
 import { addDays, nowTime, todayStr } from './lib/date'
@@ -135,12 +135,12 @@ export default function App() {
   }, [])
 
   // Priority handlers
-  const addPriority = (text: string) => {
+  const addPriority = (text: string, tier: Tier = DEFAULT_TIER) => {
     updateDay((d) => ({
       ...d,
       priorities: [
         ...d.priorities,
-        { id: uid(), text, done: false, createdAt: Date.now() } satisfies Priority,
+        { id: uid(), text, done: false, createdAt: Date.now(), tier } satisfies Priority,
       ],
     }))
   }
@@ -176,12 +176,44 @@ export default function App() {
       ...d,
       priorities: d.priorities.map((p) => (p.id === id ? { ...p, text } : p)),
     }))
+  const setPriorityTier = (id: string, tier: Tier) =>
+    updateDay((d) => ({
+      ...d,
+      priorities: d.priorities.map((p) => (p.id === id ? { ...p, tier } : p)),
+    }))
   const deletePriority = (id: string) =>
     updateDay((d) => ({ ...d, priorities: d.priorities.filter((p) => p.id !== id) }))
+  // Reorder within a tier by swapping with the in-tier neighbour, so it stays
+  // correct even when the flat array interleaves tiers after a cross-tier drag.
   const reorderPriority = (id: string, dir: -1 | 1) =>
-    updateDay((d) => ({ ...d, priorities: move(d.priorities, id, dir) }))
+    updateDay((d) => {
+      const item = d.priorities.find((p) => p.id === id)
+      if (!item) return d
+      const sameTier = d.priorities.filter((p) => p.tier === item.tier)
+      const i = sameTier.findIndex((p) => p.id === id)
+      const j = i + dir
+      if (j < 0 || j >= sameTier.length) return d // tier boundary: no-op
+      return { ...d, priorities: dragMove(d.priorities, id, sameTier[j].id, dir === -1) }
+    })
   const movePriority = (draggedId: string, targetId: string, before: boolean) =>
-    updateDay((d) => ({ ...d, priorities: dragMove(d.priorities, draggedId, targetId, before) }))
+    updateDay((d) => {
+      const dragged = d.priorities.find((p) => p.id === draggedId)
+      if (!dragged) return d
+      // Drop into an empty section's drop-zone: just retier and append.
+      if (targetId.startsWith('__empty_')) {
+        const tier: Tier = targetId === '__empty_later' ? 'later' : 'today'
+        const rest = d.priorities.filter((p) => p.id !== draggedId)
+        return { ...d, priorities: [...rest, { ...dragged, tier }] }
+      }
+      const target = d.priorities.find((p) => p.id === targetId)
+      if (!target) return d
+      // Reposition, then inherit the drop target's tier (handles cross-tier drops).
+      const reordered = dragMove(d.priorities, draggedId, targetId, before)
+      return {
+        ...d,
+        priorities: reordered.map((p) => (p.id === draggedId ? { ...p, tier: target.tier } : p)),
+      }
+    })
 
   // Log handlers
   const addLog = (text: string, time: string | null) => {
@@ -244,6 +276,7 @@ export default function App() {
             onAdd={addPriority}
             onToggle={togglePriority}
             onEdit={editPriority}
+            onSetTier={setPriorityTier}
             onDelete={deletePriority}
             onReorder={reorderPriority}
             onMove={movePriority}

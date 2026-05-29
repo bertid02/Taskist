@@ -26,6 +26,23 @@ export function XIcon() {
   )
 }
 
+export function PlusIcon() {
+  return (
+    <svg {...baseProps} aria-hidden>
+      <path d="M8 3.5v9M3.5 8h9" />
+    </svg>
+  )
+}
+
+/** Down arrow (demote to Later) or up arrow (promote to Today). */
+export function TierMoveIcon({ up }: { up: boolean }) {
+  return (
+    <svg {...baseProps} aria-hidden>
+      {up ? <path d="M8 12.5V3.5M4.5 7L8 3.5L11.5 7" /> : <path d="M8 3.5v9M4.5 9L8 12.5L11.5 9" />}
+    </svg>
+  )
+}
+
 export function HistoryIcon() {
   return (
     <svg

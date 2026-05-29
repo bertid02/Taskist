@@ -4,6 +4,16 @@ A simple, friction-free daily tasking app. Two columns: **Priorities** (what
 you mean to do) on the left, **Did** (what you actually did, timestamped) on
 the right. Unfinished priorities roll over to the next day automatically.
 
+Priorities are split into two tiers, each with its own input so you type a task
+straight into the group it belongs to:
+
+- **Today** — what you've committed to getting done today.
+- **Anytime** — a no-pressure running list that's fine to roll into later days.
+
+Both tiers roll over (keeping their tier) when left unfinished. Move a task
+between tiers any time by dragging it across the divider, using the move button
+on hover, or pressing `M` on a focused task.
+
 ## Run
 
 ```
@@ -34,6 +44,7 @@ host (GitHub Pages, Netlify, S3, etc.).
 | `Enter` on item | Edit                                  |
 | `Esc`           | Stop editing / leave the list         |
 | `Alt + ↑ / ↓`   | Reorder a focused item                |
+| `M`             | Move a priority between Today / Anytime |
 | `⌘/Ctrl + ⌫`    | Delete the focused item               |
 | `⌘/Ctrl + Z`    | Undo                                  |
 | `⌘/Ctrl + Shift + T` | Toggle timestamp on a log entry  |
@@ -41,7 +52,8 @@ host (GitHub Pages, Netlify, S3, etc.).
 | `[` / `]`       | Previous / next day                   |
 | `T`             | Jump to today                         |
 
-Mouse: hover any row for edit / delete affordances, or drag rows to reorder.
+Mouse: hover any row for move / edit / delete affordances, or drag rows to
+reorder — drag a priority across the divider to move it between Today and Anytime.
 
 ## Storage
 
