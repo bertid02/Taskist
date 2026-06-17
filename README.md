@@ -22,7 +22,9 @@ press `F` with no task focused for an untethered block. When a focus block
 finishes it can drop a timestamped entry into **Did** automatically, then offers
 a break. Defaults are 25 / 5 / 15-minute work / short-break / long-break (a long
 break every 4th block), all adjustable from the timer's settings (the `25 · 5`
-toggle on the bar). Sound and system notifications are off by default.
+toggle on the bar). A soft, synthesized completion chime is on by default (with
+distinct tones for finishing focus vs. ending a break); system notifications are
+off until you turn them on. `P` pauses/resumes, `S` skips a phase, `R` cancels.
 
 The timer is deadline-based, so it stays accurate across backgrounded tabs,
 sleep, and reloads, and it always belongs to the real current day — a block that

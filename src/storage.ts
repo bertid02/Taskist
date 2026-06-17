@@ -1,6 +1,6 @@
 import { DEFAULT_POMODORO, emptyStore, type Day, type Store } from './types'
 
-const KEY = 'taskist.v1'
+export const KEY = 'taskist.v1'
 
 export function load(): Store {
   try {

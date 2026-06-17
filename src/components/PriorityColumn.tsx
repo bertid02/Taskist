@@ -2,6 +2,7 @@ import { forwardRef, useRef, useState, type KeyboardEvent } from 'react'
 import type { Priority, Tier } from '../types'
 import { EditableText } from './EditableText'
 import { HistoryIcon, PencilIcon, PlayIcon, PlusIcon, TierMoveIcon, XIcon } from './icons'
+import { iconButtonClass, revealOnInteract } from './ui'
 import { dropShadow, useDragSort } from '../lib/useDragSort'
 import { displayDate } from '../lib/date'
 
@@ -111,8 +112,13 @@ export const PriorityColumn = forwardRef<HTMLInputElement, Props>(function Prior
       onSetTier(p.id, p.tier === 'today' ? 'later' : 'today')
       focusItem(p.id)
     } else if (e.key.toLowerCase() === 'f') {
-      e.preventDefault()
-      onStartTimer?.(p.id, p.text)
+      // Handle task-bound start here and stop the event so App's global F handler
+      // doesn't also fire and overwrite the binding with an untethered session.
+      if (onStartTimer) {
+        e.preventDefault()
+        e.stopPropagation()
+        onStartTimer(p.id, p.text)
+      }
     } else if ((e.metaKey || e.ctrlKey) && e.key === 'Backspace') {
       e.preventDefault()
       const next = items[i + 1] ?? items[i - 1]
@@ -225,7 +231,7 @@ export const PriorityColumn = forwardRef<HTMLInputElement, Props>(function Prior
             />
           </div>
           {!isEditing && (
-            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+            <div className={`flex items-center gap-0.5 ${revealOnInteract}`}>
               {onStartTimer && !p.done && (
                 <RowButton label="Start focus timer" onClick={() => onStartTimer(p.id, p.text)}>
                   <PlayIcon />
@@ -315,7 +321,7 @@ function RowButton({
       }}
       title={label}
       aria-label={label}
-      className="grid place-items-center w-6 h-6 rounded text-neutral-400 hover:text-neutral-900 hover:bg-neutral-200/60 dark:text-neutral-500 dark:hover:text-neutral-100 dark:hover:bg-neutral-800/60 transition-colors"
+      className={iconButtonClass}
     >
       {children}
     </button>
@@ -327,7 +333,7 @@ function SectionHeader({ label, count }: { label: string; count?: string | null 
     <h2 className="text-[13px] font-semibold uppercase tracking-[0.12em] text-neutral-500 dark:text-neutral-400 mb-3">
       {label}
       {count && (
-        <span className="ml-2 text-neutral-300 dark:text-neutral-600 normal-case tracking-normal font-normal">
+        <span className="ml-2 text-neutral-400 dark:text-neutral-500 normal-case tracking-normal font-normal">
           · {count}
         </span>
       )}

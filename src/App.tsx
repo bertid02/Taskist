@@ -10,14 +10,14 @@ import {
   type Theme,
   type Tier,
 } from './types'
-import { load, save } from './storage'
+import { KEY, load, save } from './storage'
 import { ensureDay } from './lib/rollover'
 import { addDays, nowTime, todayStr } from './lib/date'
 import { uid } from './lib/uid'
 import { formatDayLog } from './lib/clipboard'
 import { formatRemaining } from './lib/pomodoro'
 import { usePomodoro } from './lib/usePomodoro'
-import { playChime, unlockAudio } from './lib/chime'
+import { playSound, unlockAudio } from './lib/chime'
 import { DateHeader } from './components/DateHeader'
 import { PriorityColumn } from './components/PriorityColumn'
 import { LogColumn } from './components/LogColumn'
@@ -38,11 +38,30 @@ export default function App() {
   const undoStack = useRef<Store[]>([])
   const priorityInputRef = useRef<HTMLInputElement>(null)
   const logInputRef = useRef<HTMLInputElement>(null)
+  // Set when a store change came from another tab (via storage event), so we
+  // don't echo it straight back to localStorage and ping-pong.
+  const skipSave = useRef(false)
 
   // Persist on every change.
   useEffect(() => {
+    if (skipSave.current) {
+      skipSave.current = false
+      return
+    }
     save(store)
   }, [store])
+
+  // Cross-tab sync: adopt another tab's store writes (so a focus session logged
+  // in one tab shows in the other, and completions don't silently diverge).
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== KEY) return
+      skipSave.current = true
+      setStore(load())
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
 
   // Focus the priority input on mount and whenever the viewed date changes.
   useEffect(() => {
@@ -126,11 +145,18 @@ export default function App() {
     (s: PomodoroSession) => {
       const prefs = storeRef.current.prefs
       if (s.phase === 'work' && prefs.pomodoro.autoLogSessions) {
+        const minutes = Math.round(s.durationMs / 60_000)
+        const text = s.taskText ?? `Focus — ${minutes}m`
         const existing = storeRef.current.days[s.date]
-        const alreadyLogged = !!(s.taskId && existing?.log.some((e) => e.priorityId === s.taskId))
+        // Dedupe against the tick auto-log (same priorityId) and against a
+        // near-simultaneous duplicate (same text just logged) — the latter guards
+        // StrictMode re-fires and a second tab completing the same block.
+        const alreadyLogged = !!existing?.log.some(
+          (e) =>
+            (s.taskId && e.priorityId === s.taskId) ||
+            (e.text === text && Date.now() - e.createdAt < 5_000),
+        )
         if (!alreadyLogged) {
-          const minutes = Math.round(s.durationMs / 60_000)
-          const text = s.taskText ?? `Focus — ${minutes}m`
           mutate((store0) => {
             const { store: withDay } = ensureDay(store0, s.date)
             const target = withDay.days[s.date]
@@ -148,12 +174,15 @@ export default function App() {
           })
         }
       }
-      if (prefs.pomodoro.sound) playChime()
-      if (
+      // Avoid double-signalling: when the tab is hidden and notifications are
+      // granted, let the OS notification (with its own sound) be the signal;
+      // otherwise play the in-app chime.
+      const hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden'
+      const canNotify =
         prefs.pomodoro.notify &&
         typeof Notification !== 'undefined' &&
         Notification.permission === 'granted'
-      ) {
+      if (hidden && canNotify) {
         try {
           new Notification('Taskist', {
             body: s.phase === 'work' ? s.taskText || 'Focus complete' : 'Break over',
@@ -161,6 +190,14 @@ export default function App() {
         } catch {
           // ignore notification failures
         }
+      } else if (prefs.pomodoro.sound) {
+        playSound(
+          s.phase === 'work'
+            ? 'focusComplete'
+            : s.phase === 'longBreak'
+              ? 'breakOverLong'
+              : 'breakOver',
+        )
       }
     },
     [mutate],
@@ -211,6 +248,9 @@ export default function App() {
         return
       }
       if (typing) return
+      // Let browser/system chords through (⌘R reload, ⌘T new tab, ⌘F find, …);
+      // our single-key shortcuts are unmodified only. (Undo/copy handled above.)
+      if (e.metaKey || e.ctrlKey || e.altKey) return
       if (e.key === '[') {
         e.preventDefault()
         setDate((d) => addDays(d, -1))
@@ -373,22 +413,24 @@ export default function App() {
           />
         </div>
 
-        <div className="mt-10">
+        <div className="mt-8">
           <PomodoroTimer
             session={pomo.session}
             remainingMs={pomo.remainingMs}
             isDone={pomo.isDone}
+            completionSignal={pomo.completionSignal}
             prefs={store.prefs.pomodoro}
             onStart={() => pomo.start()}
             onPause={pomo.pause}
             onResume={pomo.resume}
             onSkip={pomo.skip}
+            onAdvance={pomo.advance}
             onReset={pomo.reset}
             onChangePrefs={setPomodoroPrefs}
           />
         </div>
 
-        <main className="mt-10 grid grid-cols-1 md:grid-cols-2 gap-x-14 gap-y-10">
+        <main className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-x-10 lg:gap-x-14 gap-y-10">
           <PriorityColumn
             ref={priorityInputRef}
             priorities={day.priorities}

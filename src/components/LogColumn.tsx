@@ -3,6 +3,7 @@ import type { LogEntry } from '../types'
 import { EditableText } from './EditableText'
 import { normalizeTime, nowTime } from '../lib/date'
 import { PlusIcon, XIcon } from './icons'
+import { iconButtonClass, revealOnInteract } from './ui'
 import { dropShadow, useDragSort } from '../lib/useDragSort'
 
 type Props = {
@@ -117,7 +118,7 @@ export const LogColumn = forwardRef<HTMLInputElement, Props>(function LogColumn(
         <h2 className="text-[13px] font-semibold uppercase tracking-[0.12em] text-neutral-500 dark:text-neutral-400">
           Did
           {entries.length > 0 && (
-            <span className="ml-2 text-neutral-300 dark:text-neutral-600 normal-case tracking-normal font-normal">
+            <span className="ml-2 text-neutral-400 dark:text-neutral-500 normal-case tracking-normal font-normal">
               · {entries.length}
             </span>
           )}
@@ -267,7 +268,7 @@ export const LogColumn = forwardRef<HTMLInputElement, Props>(function LogColumn(
                     }}
                     title="Delete"
                     aria-label="Delete"
-                    className="grid place-items-center w-6 h-6 rounded text-neutral-400 hover:text-neutral-900 hover:bg-neutral-200/60 dark:text-neutral-500 dark:hover:text-neutral-100 dark:hover:bg-neutral-800/60 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-all"
+                    className={`${iconButtonClass} ${revealOnInteract}`}
                   >
                     <XIcon />
                   </button>
