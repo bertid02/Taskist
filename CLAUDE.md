@@ -20,6 +20,10 @@ Core behaviours:
 - **Rollover** — when a day is first opened, unfinished priorities from the most recent
   prior day are copied forward, **preserving their tier**. The original day is left intact.
 - **Auto-log** — ticking a priority can auto-append a matching `Did` entry (pref-gated).
+- **Focus timer** — a Pomodoro timer in a slim bar between the columns. Start a focus block
+  on a task (`F` / play button) or untethered; a completed work block can auto-log to `Did`
+  (pref-gated, deduped against the tick auto-log), then offers a break. Deadline-based and
+  kept in its **own** `localStorage` key, outside the undo'd `Store` (see §3).
 - **Keyboard-first** — almost everything is doable from the keyboard; mouse adds hover
   affordances and drag-to-reorder.
 - **Local-only** — all state lives in `localStorage`. No backend, accounts, or sync.
@@ -65,10 +69,13 @@ Store = { version: 1; days: Record<string /*YYYY-MM-DD*/, Day>; prefs: Prefs }
 Day   = { date: string; priorities: Priority[]; log: LogEntry[] }
 Priority = { id; text; done; createdAt; tier: 'today' | 'later'; rolledOverFrom?: string }
 LogEntry = { id; text; time: string|null /*HH:MM*/; createdAt; priorityId?: string }
-Prefs    = { noTimeDefault: boolean; autoLog: boolean; theme: 'light'|'dark'|'system' }
+Prefs    = { noTimeDefault: boolean; autoLog: boolean; theme: 'light'|'dark'|'system'; pomodoro: PomodoroPrefs }
+PomodoroPrefs    = { workMin; shortBreakMin; longBreakMin; longBreakEvery; autoStartBreaks; autoStartWork; sound; notify; autoLogSessions }
+PomodoroSession  = { phase: 'work'|'shortBreak'|'longBreak'; endsAt; durationMs; running; pausedRemainingMs?; taskId; taskText; completedWork; date }
 ```
 Types live in `src/types.ts`. `DEFAULT_TIER = 'today'` is the single knob for where a brand-new
-task lands when no tier is given.
+task lands when no tier is given. `DEFAULT_POMODORO` is the pomodoro-prefs default (25/5/15, long
+break every 4, everything else off except `autoLogSessions`).
 
 **Priorities are ONE flat array per day** with a `tier` field — *not* two arrays.
 `PriorityColumn` filters it into `today` / `later` sub-lists for rendering. This keeps the
@@ -92,6 +99,21 @@ generic reorder/drag/keyboard machinery working across both tiers. Preserve this
 - **Rollover** (`lib/rollover.ts#ensureDay`) copies unfinished priorities forward with **new
   ids**, sets `tier: p.tier`, and chains `rolledOverFrom` back to the origin date. It runs on
   mount, on `window` focus, and on a 60s interval (handles overnight sessions).
+- **Pomodoro state is NOT in the `Store`.** The live session lives in its own localStorage key
+  `taskist.pomodoro.v1` (`lib/pomodoro.ts`), written only on transitions — *never per tick*.
+  This is deliberate: routing a 1Hz countdown through `mutate` would rewrite `taskist.v1` and
+  flood the 50-deep undo stack every second, and `⌘Z` could rewind a running timer. Remaining
+  time is **derived** from the absolute `endsAt` (`endsAt - Date.now()`), so it's drift-free
+  across throttled background tabs, sleep, and reload; `usePomodoro` recomputes on
+  `visibilitychange`/`focus` and fires completion exactly once (guarded by an `endsAt` ref).
+- **Pomodoro prefs migrate by deep-merge.** `load()` does `pomodoro: { ...DEFAULT_POMODORO,
+  ...stored }` so adding a sub-field later still defaults cleanly. Still **`version: 1`** — never
+  bump.
+- **Completion side-effects are undoable; ticking is not.** A finished work block logs through
+  the normal `mutate` path but to the **session's own day** (`s.date` via `ensureDay`, not the
+  viewed `date`) so a block finishing after midnight / while viewing another day lands correctly;
+  it dedupes against an existing `priorityId` log entry. On reload past `endsAt`, the session is
+  restored as *finished/awaiting-ack* and does **not** auto-log (avoids a false record).
 
 ---
 
@@ -111,6 +133,9 @@ src/
                            empty-section drop zones. forwardRef = the Today input.
     LogColumn.tsx          Did column: input, entries, editable time, auto-log/no-time
                            toggles, copy-day button.
+    PomodoroTimer.tsx      Slim focus-timer bar between the columns: idle/work/break/paused/
+                           done states (monochrome, fill-vs-outline), progress underline,
+                           controls, collapsible settings disclosure. Controlled by App.
     DateHeader.tsx         Big date label + prev/next/today navigation.
     EditableText.tsx       Reusable click-to-edit text (Enter commit, Esc cancel, blur commit).
     KeyboardHints.tsx      Collapsible shortcut reference (static `hints` array).
@@ -121,6 +146,13 @@ src/
     date.ts                todayStr, formatDate, parseDate, addDays, nowTime, displayDate,
                            normalizeTime ("9:5" → "09:05").
     clipboard.ts           formatDayLog(): day → timesheet-style plain text.
+    pomodoro.ts            Pure pomodoro logic + the `taskist.pomodoro.v1` session load/save:
+                           phaseDurationMs, nextPhase (long-break cadence), remainingMs,
+                           formatRemaining.
+    usePomodoro.ts         The timing engine hook: owns the session, the ~250ms display tick,
+                           transition→persist, visibility/focus recompute, single-fire
+                           completion. Exposes start/pause/resume/toggle/skip/reset.
+    chime.ts               Synthesized completion beep (Web Audio, gesture-unlocked, no asset).
     useDragSort.ts         HTML5 drag-sort hook + dropShadow() drop indicator.
     uid.ts                 random id generator.
 ```
@@ -144,16 +176,26 @@ src/
 | `⌘/Ctrl + Shift + L` | Copy the day's log to clipboard |
 | `[` / `]` | Previous / next day |
 | `T` | Jump to today |
+| `F` | Start a focus block — bound to the focused priority, else untethered (no-op mid-work) |
+| `P` | Pause / resume (or start, if idle) the timer |
+| `S` | Skip to the next phase |
+| `R` | Cancel the timer |
 
-Global shortcuts (`[ ] T`, undo, copy) live in `App.tsx`; per-item/input keys live in the
-column components. Letter shortcuts on rows are safe because rows are focusable `<div>`s, not
-inputs — but always early-return when an item is being edited.
+Global shortcuts (`[ ] T`, `P S R`, undo, copy) live in `App.tsx`; per-item/input keys live in
+the column components. `F` is dual: the focused priority row handles it (task-bound) in
+`PriorityColumn`, and the global handler handles the untethered case — double-firing is harmless
+because `start` is a no-op while a work block is running. App reads the timer via a `pomoRef`
+(the global keydown effect has empty deps), mirroring the existing `dayRef`/`undoStack` pattern.
+Letter shortcuts on rows are safe because rows are focusable `<div>`s, not inputs — but always
+early-return when an item is being edited / typing.
 
 ### Mouse
-- Hover a row → move-tier / edit / delete buttons appear.
-- Click a priority row → toggle done. Double-click → edit.
+- Hover a row → focus-timer / move-tier / edit / delete buttons appear.
+- Click a priority row → toggle done. Double-click → edit. The row bound to the running timer
+  shows a subtle inset ring.
 - Drag rows to reorder; drag a priority across the divider (or onto an empty section's drop
   zone) to change its tier.
+- The timer bar: play/pause/skip/cancel controls, and a `25 · 5` toggle that opens settings.
 
 ### Visual hierarchy (current)
 - Section headers **Today / Anytime / Did** share one strong style:
@@ -192,6 +234,12 @@ inputs — but always early-return when an item is being edited.
   `Priority` construction site (the `satisfies Priority` annotations will fail the build if you
   miss one — currently `addPriority` in `App.tsx` and the map in `rollover.ts`), and never bump
   the store `version`.
+- **New `Prefs` fields**: default them in `load()`'s prefs spread and `emptyStore()` (never bump
+  `version`). New `PomodoroPrefs` sub-fields just need a default in `DEFAULT_POMODORO` — the
+  deep-merge in `load()` covers migration.
+- **Real-time / transient state stays out of `Store`.** The pomodoro session is the template:
+  its own localStorage key, written on transitions only, never through `mutate`. Anything that
+  ticks or shouldn't be undoable belongs outside the `Store`.
 - **Verify**: run `npm run build` (typecheck + build). There is no test suite, so also sanity-
   check behaviour in `npm run dev` — and note that this environment has **no headless browser**,
   so interactive checks must be eyeballed locally.

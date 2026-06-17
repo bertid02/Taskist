@@ -1,4 +1,4 @@
-import { emptyStore, type Day, type Store } from './types'
+import { DEFAULT_POMODORO, emptyStore, type Day, type Store } from './types'
 
 const KEY = 'taskist.v1'
 
@@ -13,7 +13,14 @@ export function load(): Store {
     return {
       version: 1,
       days: normalizeDays(parsed.days ?? {}),
-      prefs: { noTimeDefault: false, autoLog: true, theme: 'system', ...(parsed.prefs ?? {}) },
+      prefs: {
+        noTimeDefault: false,
+        autoLog: true,
+        theme: 'system',
+        ...(parsed.prefs ?? {}),
+        // Deep-merge the nested object so adding a sub-field later still gets a default.
+        pomodoro: { ...DEFAULT_POMODORO, ...(parsed.prefs?.pomodoro ?? {}) },
+      },
     }
   } catch {
     return emptyStore()

@@ -14,6 +14,21 @@ Both tiers roll over (keeping their tier) when left unfinished. Move a task
 between tiers any time by dragging it across the divider, using the move button
 on hover, or pressing `M` on a focused task.
 
+## Focus timer
+
+A built-in Pomodoro timer sits between the two columns. Press `F` on a focused
+priority (or click its play button) to start a focus block bound to that task;
+press `F` with no task focused for an untethered block. When a focus block
+finishes it can drop a timestamped entry into **Did** automatically, then offers
+a break. Defaults are 25 / 5 / 15-minute work / short-break / long-break (a long
+break every 4th block), all adjustable from the timer's settings (the `25 · 5`
+toggle on the bar). Sound and system notifications are off by default.
+
+The timer is deadline-based, so it stays accurate across backgrounded tabs,
+sleep, and reloads, and it always belongs to the real current day — a block that
+finishes after midnight logs to the new day. It lives outside the undo history,
+so `⌘Z` never touches a running timer.
+
 ## Run
 
 ```
@@ -51,14 +66,20 @@ host (GitHub Pages, Netlify, S3, etc.).
 | `⌘/Ctrl + Shift + L` | Copy the day to clipboard        |
 | `[` / `]`       | Previous / next day                   |
 | `T`             | Jump to today                         |
+| `F`             | Start a focus block (on the focused task, if any) |
+| `P`             | Pause / resume the timer              |
+| `S`             | Skip to the next phase                 |
+| `R`             | Cancel the timer                      |
 
-Mouse: hover any row for move / edit / delete affordances, or drag rows to
-reorder — drag a priority across the divider to move it between Today and Anytime.
+Mouse: hover any row for focus / move / edit / delete affordances, or drag rows
+to reorder — drag a priority across the divider to move it between Today and Anytime.
 
 ## Storage
 
-Everything lives in `localStorage` under the key `taskist.v1`. No backend, no
-accounts, no sync — single browser only.
+Everything lives in `localStorage` under the key `taskist.v1`. The running focus
+timer is kept in a separate key, `taskist.pomodoro.v1`, deliberately outside the
+main store so per-second ticks never touch undo or the document history. No
+backend, no accounts, no sync — single browser only.
 
 ## Deploy
 

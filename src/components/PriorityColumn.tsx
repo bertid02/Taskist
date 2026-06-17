@@ -1,12 +1,14 @@
 import { forwardRef, useRef, useState, type KeyboardEvent } from 'react'
 import type { Priority, Tier } from '../types'
 import { EditableText } from './EditableText'
-import { HistoryIcon, PencilIcon, PlusIcon, TierMoveIcon, XIcon } from './icons'
+import { HistoryIcon, PencilIcon, PlayIcon, PlusIcon, TierMoveIcon, XIcon } from './icons'
 import { dropShadow, useDragSort } from '../lib/useDragSort'
 import { displayDate } from '../lib/date'
 
 type Props = {
   priorities: Priority[]
+  /** The priority the running focus timer is bound to, if any. */
+  activeTaskId?: string | null
   onAdd: (text: string, tier: Tier) => void
   onToggle: (id: string) => void
   onEdit: (id: string, text: string) => void
@@ -14,6 +16,7 @@ type Props = {
   onDelete: (id: string) => void
   onReorder: (id: string, dir: -1 | 1) => void
   onMove: (draggedId: string, targetId: string, before: boolean) => void
+  onStartTimer?: (id: string, text: string) => void
 }
 
 const inputClass =
@@ -23,7 +26,7 @@ const inputClass =
   'focus:ring-2 focus:ring-neutral-200 dark:focus:ring-neutral-700 transition-colors'
 
 export const PriorityColumn = forwardRef<HTMLInputElement, Props>(function PriorityColumn(
-  { priorities, onAdd, onToggle, onEdit, onSetTier, onDelete, onReorder, onMove },
+  { priorities, activeTaskId, onAdd, onToggle, onEdit, onSetTier, onDelete, onReorder, onMove, onStartTimer },
   inputRef,
 ) {
   const [todayDraft, setTodayDraft] = useState('')
@@ -107,6 +110,9 @@ export const PriorityColumn = forwardRef<HTMLInputElement, Props>(function Prior
       e.preventDefault()
       onSetTier(p.id, p.tier === 'today' ? 'later' : 'today')
       focusItem(p.id)
+    } else if (e.key.toLowerCase() === 'f') {
+      e.preventDefault()
+      onStartTimer?.(p.id, p.text)
     } else if ((e.metaKey || e.ctrlKey) && e.key === 'Backspace') {
       e.preventDefault()
       const next = items[i + 1] ?? items[i - 1]
@@ -141,6 +147,7 @@ export const PriorityColumn = forwardRef<HTMLInputElement, Props>(function Prior
     const isEditing = editingId === p.id
     const isDragging = drag.dragId === p.id
     const isDropTarget = drag.dropTarget?.id === p.id
+    const isActive = activeTaskId === p.id
     const moveLabel = p.tier === 'today' ? 'Move to Anytime' : 'Move to Today'
     return (
       <li key={p.id}>
@@ -171,7 +178,7 @@ export const PriorityColumn = forwardRef<HTMLInputElement, Props>(function Prior
           }}
           className={`group flex items-center gap-3 px-3 py-2 -mx-3 rounded-md cursor-grab active:cursor-grabbing select-none transition-colors ${
             isFocused ? 'bg-neutral-100 dark:bg-neutral-900' : 'hover:bg-neutral-50 dark:hover:bg-neutral-900/50'
-          } ${isDragging ? 'opacity-40' : ''}`}
+          } ${isActive ? 'ring-1 ring-inset ring-neutral-300 dark:ring-neutral-600' : ''} ${isDragging ? 'opacity-40' : ''}`}
         >
           <span
             aria-hidden
@@ -219,6 +226,11 @@ export const PriorityColumn = forwardRef<HTMLInputElement, Props>(function Prior
           </div>
           {!isEditing && (
             <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+              {onStartTimer && !p.done && (
+                <RowButton label="Start focus timer" onClick={() => onStartTimer(p.id, p.text)}>
+                  <PlayIcon />
+                </RowButton>
+              )}
               <RowButton
                 label={moveLabel}
                 onClick={() => onSetTier(p.id, p.tier === 'today' ? 'later' : 'today')}
