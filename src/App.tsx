@@ -1,13 +1,27 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { DEFAULT_TIER, type Day, type LogEntry, type Priority, type Store, type Theme, type Tier } from './types'
+import {
+  DEFAULT_TIER,
+  type Day,
+  type LogEntry,
+  type PomodoroPrefs,
+  type PomodoroSession,
+  type Priority,
+  type Store,
+  type Theme,
+  type Tier,
+} from './types'
 import { load, save } from './storage'
 import { ensureDay } from './lib/rollover'
 import { addDays, nowTime, todayStr } from './lib/date'
 import { uid } from './lib/uid'
 import { formatDayLog } from './lib/clipboard'
+import { formatRemaining } from './lib/pomodoro'
+import { usePomodoro } from './lib/usePomodoro'
+import { playChime, unlockAudio } from './lib/chime'
 import { DateHeader } from './components/DateHeader'
 import { PriorityColumn } from './components/PriorityColumn'
 import { LogColumn } from './components/LogColumn'
+import { PomodoroTimer } from './components/PomodoroTimer'
 import { ThemeToggle } from './components/ThemeToggle'
 import { KeyboardHints } from './components/KeyboardHints'
 import { Logo } from './components/Logo'
@@ -81,6 +95,10 @@ export default function App() {
   useEffect(() => {
     dayRef.current = day
   }, [day])
+  // Latest store, read synchronously by pomodoro completion (which may fire for a
+  // day other than the one being viewed).
+  const storeRef = useRef(store)
+  storeRef.current = store
 
   const mutate = useCallback((updater: (s: Store) => Store) => {
     setStore((prev) => {
@@ -99,6 +117,80 @@ export default function App() {
     },
     [date, mutate],
   )
+
+  // Pomodoro. Completion side-effects route through the undoable log path and
+  // target the session's OWN day (which may differ from the viewed `date` after
+  // midnight or date navigation); the timer's ticking lives entirely in the hook,
+  // outside the Store and undo stack.
+  const onPomodoroComplete = useCallback(
+    (s: PomodoroSession) => {
+      const prefs = storeRef.current.prefs
+      if (s.phase === 'work' && prefs.pomodoro.autoLogSessions) {
+        const existing = storeRef.current.days[s.date]
+        const alreadyLogged = !!(s.taskId && existing?.log.some((e) => e.priorityId === s.taskId))
+        if (!alreadyLogged) {
+          const minutes = Math.round(s.durationMs / 60_000)
+          const text = s.taskText ?? `Focus — ${minutes}m`
+          mutate((store0) => {
+            const { store: withDay } = ensureDay(store0, s.date)
+            const target = withDay.days[s.date]
+            const entry: LogEntry = {
+              id: uid(),
+              text,
+              time: store0.prefs.noTimeDefault ? null : nowTime(),
+              createdAt: Date.now(),
+              priorityId: s.taskId ?? undefined,
+            }
+            return {
+              ...withDay,
+              days: { ...withDay.days, [s.date]: { ...target, log: [...target.log, entry] } },
+            }
+          })
+        }
+      }
+      if (prefs.pomodoro.sound) playChime()
+      if (
+        prefs.pomodoro.notify &&
+        typeof Notification !== 'undefined' &&
+        Notification.permission === 'granted'
+      ) {
+        try {
+          new Notification('Taskist', {
+            body: s.phase === 'work' ? s.taskText || 'Focus complete' : 'Break over',
+          })
+        } catch {
+          // ignore notification failures
+        }
+      }
+    },
+    [mutate],
+  )
+
+  const pomo = usePomodoro({ prefs: store.prefs.pomodoro, onComplete: onPomodoroComplete })
+  const pomoRef = useRef(pomo)
+  pomoRef.current = pomo
+
+  const startTimerForTask = useCallback((id: string, text: string) => pomo.start({ taskId: id, taskText: text }), [pomo.start])
+
+  const setPomodoroPrefs = (patch: Partial<PomodoroPrefs>) =>
+    mutate((s) => ({ ...s, prefs: { ...s.prefs, pomodoro: { ...s.prefs.pomodoro, ...patch } } }))
+
+  // Reflect the countdown in the tab title (visible on a backgrounded PWA).
+  useEffect(() => {
+    document.title =
+      pomo.session && !pomo.isDone ? `${formatRemaining(pomo.remainingMs)} · Taskist` : 'Taskist'
+  }, [pomo.session, pomo.remainingMs, pomo.isDone])
+
+  // Unlock the audio context on first interaction so the completion chime can play.
+  useEffect(() => {
+    const unlock = () => unlockAudio()
+    window.addEventListener('pointerdown', unlock, { once: true })
+    window.addEventListener('keydown', unlock, { once: true })
+    return () => {
+      window.removeEventListener('pointerdown', unlock)
+      window.removeEventListener('keydown', unlock)
+    }
+  }, [])
 
   // Global shortcuts.
   useEffect(() => {
@@ -128,6 +220,18 @@ export default function App() {
       } else if (e.key.toLowerCase() === 't') {
         e.preventDefault()
         setDate(todayStr())
+      } else if (e.key.toLowerCase() === 'f') {
+        e.preventDefault()
+        pomoRef.current.start()
+      } else if (e.key.toLowerCase() === 'p') {
+        e.preventDefault()
+        pomoRef.current.toggle()
+      } else if (e.key.toLowerCase() === 's') {
+        e.preventDefault()
+        pomoRef.current.skip()
+      } else if (e.key.toLowerCase() === 'r') {
+        e.preventDefault()
+        pomoRef.current.reset()
       }
     }
     window.addEventListener('keydown', onKey)
@@ -269,10 +373,30 @@ export default function App() {
           />
         </div>
 
-        <main className="mt-14 grid grid-cols-1 md:grid-cols-2 gap-x-14 gap-y-10">
+        <div className="mt-10">
+          <PomodoroTimer
+            session={pomo.session}
+            remainingMs={pomo.remainingMs}
+            isDone={pomo.isDone}
+            prefs={store.prefs.pomodoro}
+            onStart={() => pomo.start()}
+            onPause={pomo.pause}
+            onResume={pomo.resume}
+            onSkip={pomo.skip}
+            onReset={pomo.reset}
+            onChangePrefs={setPomodoroPrefs}
+          />
+        </div>
+
+        <main className="mt-10 grid grid-cols-1 md:grid-cols-2 gap-x-14 gap-y-10">
           <PriorityColumn
             ref={priorityInputRef}
             priorities={day.priorities}
+            activeTaskId={
+              pomo.session && pomo.session.phase === 'work' && !pomo.isDone
+                ? pomo.session.taskId
+                : null
+            }
             onAdd={addPriority}
             onToggle={togglePriority}
             onEdit={editPriority}
@@ -280,6 +404,7 @@ export default function App() {
             onDelete={deletePriority}
             onReorder={reorderPriority}
             onMove={movePriority}
+            onStartTimer={startTimerForTask}
           />
           <LogColumn
             ref={logInputRef}

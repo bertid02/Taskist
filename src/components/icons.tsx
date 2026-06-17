@@ -43,6 +43,31 @@ export function TierMoveIcon({ up }: { up: boolean }) {
   )
 }
 
+export function PlayIcon() {
+  return (
+    <svg {...baseProps} fill="currentColor" stroke="none" aria-hidden>
+      <path d="M5 3.5 L12.5 8 L5 12.5 Z" />
+    </svg>
+  )
+}
+
+export function PauseIcon() {
+  return (
+    <svg {...baseProps} aria-hidden>
+      <path d="M6 4v8M10 4v8" />
+    </svg>
+  )
+}
+
+export function SkipIcon() {
+  return (
+    <svg {...baseProps} fill="currentColor" stroke="none" aria-hidden>
+      <path d="M4.5 4 L9.5 8 L4.5 12 Z" />
+      <rect x="10.5" y="4" width="1.5" height="8" rx="0.5" />
+    </svg>
+  )
+}
+
 export function HistoryIcon() {
   return (
     <svg
