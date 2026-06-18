@@ -65,7 +65,7 @@ export const DEFAULT_POMODORO: PomodoroPrefs = {
   longBreakEvery: 4,
   autoStartBreaks: false,
   autoStartWork: false,
-  sound: false,
+  sound: true,
   notify: false,
   autoLogSessions: true,
 }

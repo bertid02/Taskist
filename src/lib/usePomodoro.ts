@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { PomodoroPrefs, PomodoroSession, PomoPhase } from '../types'
 import { todayStr } from './date'
+import { playSound } from './chime'
 import {
   clearSession,
   loadSession,
@@ -8,6 +9,7 @@ import {
   phaseDurationMs,
   remainingMs as remainingMsOf,
   saveSession,
+  SESSION_KEY,
 } from './pomodoro'
 
 export type StartOpts = { phase?: PomoPhase; taskId?: string | null; taskText?: string | null }
@@ -18,15 +20,19 @@ export type PomodoroControls = {
   remainingMs: number
   /** A finished phase awaiting acknowledgement (e.g. it elapsed while the tab was closed). */
   isDone: boolean
+  /** Increments on each natural completion — drives the completion flash. */
+  completionSignal: number
   /** Start a focus block. No-op only while a work block is actively running. */
   start: (opts?: StartOpts) => void
   pause: () => void
   resume: () => void
-  /** Start if idle, pause if running, resume if paused, dismiss if done. (The `P` key.) */
+  /** Pause if running, resume if paused, continue if done. No-op when idle. (The `P` key.) */
   toggle: () => void
   /** Jump to the next phase as "ready" without counting or logging the current one. */
   skip: () => void
-  /** Cancel the session entirely. */
+  /** Start the next phase running now (used to continue from the done state). */
+  advance: () => void
+  /** Cancel the session entirely. No-op when idle. */
   reset: () => void
 }
 
@@ -43,6 +49,7 @@ export function usePomodoro(args: {
 }): PomodoroControls {
   const [session, setSession] = useState<PomodoroSession | null>(loadSession)
   const [now, setNow] = useState<number>(() => Date.now())
+  const [completionSignal, setCompletionSignal] = useState(0)
 
   // Mirror the latest values into refs so the stable callbacks/effects below
   // (and App's empty-deps global keydown handler) always read current state.
@@ -65,6 +72,7 @@ export function usePomodoro(args: {
   const handleComplete = useCallback(
     (finished: PomodoroSession) => {
       onCompleteRef.current(finished)
+      setCompletionSignal((n) => n + 1)
       const prefs = prefsRef.current
       const { phase, completedWork } = nextPhase(finished, prefs)
       const autoStart = phase === 'work' ? prefs.autoStartWork : prefs.autoStartBreaks
@@ -133,6 +141,7 @@ export function usePomodoro(args: {
     (phase: PomoPhase, taskId: string | null, taskText: string | null, completedWork: number) => {
       const dur = phaseDurationMs(prefsRef.current, phase)
       const t = Date.now()
+      if (prefsRef.current.sound) playSound('start')
       apply({
         phase,
         endsAt: t + dur,
@@ -170,22 +179,27 @@ export function usePomodoro(args: {
     apply({ ...cur, running: true, endsAt: Date.now() + rem, pausedRemainingMs: undefined })
   }, [apply])
 
+  // Continue from a finished/ready state into the next phase, running now.
+  const advance = useCallback(() => {
+    const cur = sessionRef.current
+    if (!cur) return
+    const phase: PomoPhase = cur.phase === 'work' ? 'shortBreak' : 'work'
+    begin(phase, null, null, cur.completedWork)
+  }, [begin])
+
   const toggle = useCallback(() => {
     const cur = sessionRef.current
-    if (!cur) {
-      begin('work', null, null, 0)
-      return
-    }
+    if (!cur) return // idle: P doesn't start — that's F / the Focus button
     if (cur.running) {
       pause()
       return
     }
     if ((cur.pausedRemainingMs ?? 0) <= 0) {
-      apply(null) // done → dismiss
+      advance() // done → continue to the next phase, don't discard it
       return
     }
     resume()
-  }, [apply, begin, pause, resume])
+  }, [advance, pause, resume])
 
   const skip = useCallback(() => {
     const cur = sessionRef.current
@@ -206,14 +220,43 @@ export function usePomodoro(args: {
   }, [apply])
 
   const reset = useCallback(() => {
+    if (!sessionRef.current) return // no-op when idle (so a stray R does nothing)
     completedFor.current = null
     clearSession()
     sessionRef.current = null
     setSession(null)
   }, [])
 
+  // Cross-tab sync: adopt the session another tab writes, so pause/resume/start/
+  // reset propagate and the tabs behave as one logical timer.
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== SESSION_KEY) return
+      const next = loadSession()
+      sessionRef.current = next
+      setSession(next)
+      // Don't re-fire completion for a phase another tab already resolved.
+      completedFor.current = next && next.running ? null : (next?.endsAt ?? null)
+      setNow(Date.now())
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
+
   const remaining = session ? remainingMsOf(session, now) : 0
   const isDone = !!session && !session.running && remaining === 0
 
-  return { session, remainingMs: remaining, isDone, start, pause, resume, toggle, skip, reset }
+  return {
+    session,
+    remainingMs: remaining,
+    isDone,
+    completionSignal,
+    start,
+    pause,
+    resume,
+    toggle,
+    skip,
+    advance,
+    reset,
+  }
 }

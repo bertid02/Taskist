@@ -1,8 +1,9 @@
 import type { PomodoroPrefs, PomodoroSession, PomoPhase } from '../types'
 
-const SESSION_KEY = 'taskist.pomodoro.v1'
+export const SESSION_KEY = 'taskist.pomodoro.v1'
 
-/** Length of a given phase in milliseconds, from the user's prefs. */
+/** Length of a given phase in milliseconds, from the user's prefs. Floored at one
+ * minute so a corrupt/hand-edited 0 can't create an instant-complete loop. */
 export function phaseDurationMs(prefs: PomodoroPrefs, phase: PomoPhase): number {
   const min =
     phase === 'work'
@@ -10,7 +11,7 @@ export function phaseDurationMs(prefs: PomodoroPrefs, phase: PomoPhase): number 
       : phase === 'longBreak'
         ? prefs.longBreakMin
         : prefs.shortBreakMin
-  return Math.max(1, Math.round(min * 60_000))
+  return Math.max(60_000, Math.round(min * 60_000))
 }
 
 /**

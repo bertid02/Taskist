@@ -75,7 +75,7 @@ PomodoroSession  = { phase: 'work'|'shortBreak'|'longBreak'; endsAt; durationMs;
 ```
 Types live in `src/types.ts`. `DEFAULT_TIER = 'today'` is the single knob for where a brand-new
 task lands when no tier is given. `DEFAULT_POMODORO` is the pomodoro-prefs default (25/5/15, long
-break every 4, everything else off except `autoLogSessions`).
+break every 4; `autoLogSessions` and `sound` on, auto-start and `notify` off).
 
 **Priorities are ONE flat array per day** with a `tier` field — *not* two arrays.
 `PriorityColumn` filters it into `today` / `later` sub-lists for rendering. This keeps the
@@ -112,8 +112,18 @@ generic reorder/drag/keyboard machinery working across both tiers. Preserve this
 - **Completion side-effects are undoable; ticking is not.** A finished work block logs through
   the normal `mutate` path but to the **session's own day** (`s.date` via `ensureDay`, not the
   viewed `date`) so a block finishing after midnight / while viewing another day lands correctly;
-  it dedupes against an existing `priorityId` log entry. On reload past `endsAt`, the session is
-  restored as *finished/awaiting-ack* and does **not** auto-log (avoids a false record).
+  it dedupes against an existing `priorityId` entry **and** any same-text entry logged in the last
+  5s (guards StrictMode re-fires and a second tab). On reload past `endsAt`, the session is
+  restored as *finished/awaiting-ack* and does **not** auto-log (avoids a false record); the bar's
+  "Start break/focus" button (and `P`) continues into the next phase rather than discarding it.
+- **Sounds are synthesized in `lib/chime.ts`** (warm additive bell/marimba voices, no asset): a
+  rising fifth on focus-complete, a single low note on short-break-over, a descending pair on
+  long-break-over, and a whisper "start" tick. `playSound(name)` is gesture-unlocked and no-ops
+  when the context is suspended; completion audio is suppressed when a system notification will
+  fire on a hidden tab (no double-signal). Never the only signal — visual state is the truth.
+- **Cross-tab sync.** Both `taskist.v1` (App) and `taskist.pomodoro.v1` (`usePomodoro`) have a
+  `storage` listener so a second tab adopts the latest store/session; App guards the echo with a
+  `skipSave` ref so adopting a remote change doesn't re-save and ping-pong.
 
 ---
 
@@ -181,10 +191,13 @@ src/
 | `S` | Skip to the next phase |
 | `R` | Cancel the timer |
 
-Global shortcuts (`[ ] T`, `P S R`, undo, copy) live in `App.tsx`; per-item/input keys live in
-the column components. `F` is dual: the focused priority row handles it (task-bound) in
-`PriorityColumn`, and the global handler handles the untethered case — double-firing is harmless
-because `start` is a no-op while a work block is running. App reads the timer via a `pomoRef`
+Global shortcuts (`[ ] T`, `F P S R`, undo, copy) live in `App.tsx`; per-item/input keys live in
+the column components. The global handler early-returns on `isTyping` **and** on any
+meta/ctrl/alt chord, so browser shortcuts (⌘R/⌘T/⌘F) aren't hijacked. `F` is dual: a focused
+priority row handles it task-bound in `PriorityColumn` and calls `e.stopPropagation()` so App's
+global untethered `F` doesn't also fire and overwrite the binding; with no row focused the global
+handler starts an untethered block. `P` controls an existing session only (no-op when idle —
+starting is `F`/the button); `R` is a no-op when idle. App reads the timer via a `pomoRef`
 (the global keydown effect has empty deps), mirroring the existing `dayRef`/`undoStack` pattern.
 Letter shortcuts on rows are safe because rows are focusable `<div>`s, not inputs — but always
 early-return when an item is being edited / typing.
